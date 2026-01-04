@@ -1,0 +1,60 @@
+name: Deploy Frontend to App Service
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Azure App Service name to deploy to'
+        required: false
+        default: 'getganja' 
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: ./apps/customer-app
+        run: |
+          npm ci
+
+      - name: Build frontend
+        working-directory: ./apps/customer-app
+        run: |
+          npm run build
+
+      - name: Zip build output
+        run: |
+          cd apps/customer-app && zip -r ../../frontend-deploy.zip build
+
+      - name: Debug: show deploy target and zip contents
+        run: |
+          echo "Deploying to app: ${{ github.event.inputs.app_name || 'getganja' }}"
+          ls -la ./frontend-deploy.zip || true
+          unzip -l ./frontend-deploy.zip || true
+
+      - name: Verify build contains index.html
+        run: |
+          if ! unzip -l ./frontend-deploy.zip | grep -q 'index.html'; then
+            echo "index.html not found in frontend-deploy.zip" && exit 1
+          fi
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          # Default app set to your production app `getganja`, can be overridden via workflow_dispatch input `app_name`
+          app-name: ${{ github.event.inputs.app_name || 'getganja' }}
+          package: ./frontend-deploy.zip
