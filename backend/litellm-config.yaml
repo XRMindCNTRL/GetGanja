@@ -1,0 +1,64 @@
+model_list:
+  # Azure OpenAI - GPT-4o Mini
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: azure/gpt-4o-mini
+      api_key: ${AZURE_OPENAI_API_KEY}
+      api_base: https://mikesacks420-4236-resource.openai.azure.com/
+      api_version: "2024-08-01-preview"
+    model_info:
+      fallback_models: []
+
+  # Azure AI Foundry - Grok4Mind BridgeDev
+  - model_name: azure/grok4mind-bridgedev
+    litellm_params:
+      model: azure/grok4mind-bridgedev
+      api_key: ${AZURE_AI_FOUNDRY_API_KEY}
+      api_base: https://grok4mind-bridgedev-resource.services.ai.azure.com/api/projects/grok4mind-bridgedev
+    model_info:
+      fallback_models: ["gpt-4o-mini"]
+
+  # OpenRouter - Claude Sonnet 4 (requires OpenRouter API key)
+  - model_name: custom/blackbox-pro
+    litellm_params:
+      model: openrouter/anthropic/claude-3.5-sonnet
+      api_key: ${OPENROUTER_API_KEY}
+    model_info:
+      fallback_models: ["gpt-4o-mini"]
+
+  # Deepseek - Chat (requires Deepseek API key)
+  - model_name: deepseek/deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: ${DEEPSEEK_API_KEY}
+    model_info:
+      fallback_models: ["gpt-4o-mini"]
+
+general_settings:
+  master_key: ${LITELLM_MASTER_KEY}
+  database_url: ${DATABASE_URL}
+  log_level: info
+  
+  # LiteLLM Server Settings
+  litellm_server_api_key: ${LITELLM_MASTER_KEY}
+  enable_request_logging: true
+  
+  # Timeout settings (seconds)
+  request_timeout: 60
+  
+  # Fallback behavior
+  fallback_on_openai_api_error: true
+  
+  # Cost tracking
+  track_cost_per_token: true
+
+router_settings:
+  # Allow router to pick best model based on latency/cost
+  enable_smart_routing: true
+  
+  # Retry configuration
+  max_retries: 3
+  retry_after: 1  # seconds
+  
+  # Load balancing
+  load_balance_requests: true
