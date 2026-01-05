@@ -1,0 +1,50 @@
+name: Deploy Vendor Dashboard to Azure Static Web Apps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build and Deploy Vendor Dashboard
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies (vendor-dashboard)
+        run: |
+          cd apps/vendor-dashboard
+          npm ci
+
+      - name: Build vendor-dashboard
+        run: |
+          cd apps/vendor-dashboard
+          npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_VENDOR_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'apps/vendor-dashboard'
+          app_artifact_location: 'build'
+          skip_app_build: true
+
+      - name: Deployment complete
+        run: |
+          echo "Deployment to Vendor Dashboard complete"
