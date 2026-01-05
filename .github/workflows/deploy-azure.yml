@@ -1,0 +1,143 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_SUBSCRIPTION_ID: 2e0757c5-8619-4f8b-a484-4e12fe6ca133
+  AZURE_RESOURCE_GROUP: cannabis-delivery-rg
+  AZURE_LOCATION: southafricanorth
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+          az account show
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --tags Environment=production Project=CannabisDeliveryPlatform
+
+      - name: Deploy Infrastructure (Bicep)
+        run: |
+          az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters \
+              databaseName="cannabisdb" \
+              environmentName="production" \
+              dbPassword="${{ secrets.DB_PASSWORD }}" \
+            --output json
+
+      - name: Get Resource Names
+        id: resources
+        run: |
+          WEBAPP=$(az resource list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[?type=='Microsoft.Web/sites' && name_like(*,'api*')].name" -o tsv)
+          KEYVAULT=$(az resource list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[?type=='Microsoft.KeyVault/vaults'].name" -o tsv)
+          echo "webapp=$WEBAPP" >> $GITHUB_OUTPUT
+          echo "keyvault=$KEYVAULT" >> $GITHUB_OUTPUT
+
+      - name: Configure Key Vault Secrets
+        run: |
+          az keyvault secret set \
+            --vault-name ${{ steps.resources.outputs.keyvault }} \
+            --name "db-password" \
+            --value "${{ secrets.DB_PASSWORD }}"
+          az keyvault secret set \
+            --vault-name ${{ steps.resources.outputs.keyvault }} \
+            --name "jwt-secret" \
+            --value "${{ secrets.JWT_SECRET }}"
+          az keyvault secret set \
+            --vault-name ${{ steps.resources.outputs.keyvault }} \
+            --name "stripe-key" \
+            --value "${{ secrets.STRIPE_SECRET_KEY }}"
+          az keyvault secret set \
+            --vault-name ${{ steps.resources.outputs.keyvault }} \
+            --name "firebase-key" \
+            --value "${{ secrets.FIREBASE_ADMIN_KEY }}"
+
+      - name: Build Backend
+        run: |
+          cd backend
+          npm install
+          npm run build
+          cd ..
+
+      - name: Deploy Backend
+        run: |
+          cd backend
+          zip -r ../backend-deploy.zip .
+          az webapp deployment source config-zip \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ steps.resources.outputs.webapp }} \
+            --src ../backend-deploy.zip
+          cd ..
+
+      - name: Build Frontend Apps
+        run: |
+          for app in apps/customer-app apps/vendor-dashboard apps/driver-app apps/admin-panel; do
+            echo "Building $app..."
+            cd $app
+            npm install
+            npm run build
+            cd ../..
+          done
+
+      - name: Deploy Frontend Apps to Static Web Apps
+        run: |
+          APPS=("customer-app" "vendor-dashboard" "driver-app" "admin-panel")
+          for app in "${APPS[@]}"; do
+            SWA_NAME="cannabis-$app"
+            echo "Creating/Updating Static Web App: $SWA_NAME"
+            
+            az staticwebapp create \
+              --name $SWA_NAME \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --location ${{ env.AZURE_LOCATION }} \
+              --branch main \
+              --app-location "apps/$app/build" \
+              --skip-api-validation \
+              || true
+          done
+
+      - name: Get Deployed URLs
+        run: |
+          echo "🎉 Deployment Complete!"
+          echo ""
+          echo "Backend API:"
+          WEBAPP=$(az resource list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[?type=='Microsoft.Web/sites' && name_like(*,'api*')].name" -o tsv)
+          if [ ! -z "$WEBAPP" ]; then
+            WEBAPP_URL=$(az webapp show --name $WEBAPP --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "defaultHostName" -o tsv)
+            echo "  https://$WEBAPP_URL/api"
+          fi
+          
+          echo ""
+          echo "Frontend Apps:"
+          APPS=("customer-app" "vendor-dashboard" "driver-app" "admin-panel")
+          for app in "${APPS[@]}"; do
+            SWA_NAME="cannabis-$app"
+            SWA_URL=$(az staticwebapp show --name $SWA_NAME --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+            if [ ! -z "$SWA_URL" ]; then
+              echo "  $app: https://$SWA_URL"
+            fi
+          done
