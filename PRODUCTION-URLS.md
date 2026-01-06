@@ -3,8 +3,9 @@
 ## 🌐 Live Application URLs
 
 ### Frontend Applications
-- **Customer App**: https://jolly-forest-020c52a0f.6.azurestaticapps.net
+- **Customer App**: https://orange-mud-083f9ac0f.4.azurestaticapps.net
   - Browse products, place orders, user registration/login
+
 - **Vendor Dashboard**: https://gentle-grass-00bb9010f.1.azurestaticapps.net
   - Vendor inventory management, order handling
 - **Driver App**: https://red-mud-0b72f350f.2.azurestaticapps.net
