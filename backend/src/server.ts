@@ -3,12 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import multer from 'multer';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
 import orderRoutes from './routes/orders';
 import paymentRoutes from './routes/payments';
+import storageService from './utils/storageService';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +21,23 @@ const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
     methods: ["GET", "POST"]
+  }
+});
+
+// Configure multer for file uploads (10MB max)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed'));
+    }
   }
 });
 
@@ -150,17 +169,48 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Initialize Azure Storage on startup
+async function initializeStorage() {
+  try {
+    if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
+      await storageService.initializeContainer();
+      console.log('✅ Azure Storage initialized successfully');
+    } else {
+      console.warn('⚠️ AZURE_STORAGE_CONNECTION_STRING not configured - image uploads disabled');
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize Azure Storage:', error);
+  }
+}
+
+// Initialize storage and start routes
+initializeStorage();
+
 // Auth routes
 app.use('/auth', authRoutes);
 
-// Product routes
-app.use('/products', productRoutes);
+// Product routes with multer middleware for file uploads
+app.use('/products', upload.single('image'), productRoutes);
 
 // Order routes
 app.use('/orders', orderRoutes);
 
 // Payment routes
 app.use('/payments', paymentRoutes);
+
+// Error handler for multer file upload errors
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if ((err as any).code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    } else if ((err as any).code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Too many files' });
+    }
+  } else if (err && err.message && err.message.includes('Invalid file type')) {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
+});
 
 // Socket.io for real-time tracking
 io.on('connection', (socket) => {
