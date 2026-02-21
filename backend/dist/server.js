@@ -8,12 +8,14 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const multer_1 = __importDefault(require("multer"));
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const auth_1 = __importDefault(require("./routes/auth"));
 const products_1 = __importDefault(require("./routes/products"));
 const orders_1 = __importDefault(require("./routes/orders"));
 const payments_1 = __importDefault(require("./routes/payments"));
+const storageService_1 = __importDefault(require("./utils/storageService"));
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -22,6 +24,23 @@ const io = new socket_io_1.Server(server, {
     cors: {
         origin: process.env.FRONTEND_URL || "http://localhost:3000",
         methods: ["GET", "POST"]
+    }
+});
+// Configure multer for file uploads (10MB max)
+const upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB
+    },
+    fileFilter: (req, file, cb) => {
+        // Only allow image files
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        }
+        else {
+            cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed'));
+        }
     }
 });
 // Middleware
@@ -39,18 +58,154 @@ app.use(limiter);
 // Body parsing
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true }));
+// Root route - serve landing page
+app.get('/', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cannabis Delivery Platform</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                padding: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container {
+                text-align: center;
+                max-width: 800px;
+                padding: 2rem;
+            }
+            h1 {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            }
+            p {
+                font-size: 1.2rem;
+                margin-bottom: 2rem;
+                opacity: 0.9;
+            }
+            .apps {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1rem;
+                margin-top: 2rem;
+            }
+            .app-card {
+                background: rgba(255,255,255,0.1);
+                padding: 1.5rem;
+                border-radius: 10px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.2);
+                transition: transform 0.3s ease;
+            }
+            .app-card:hover {
+                transform: translateY(-5px);
+            }
+            .app-card h3 {
+                margin-top: 0;
+                color: #ffd700;
+            }
+            .status {
+                display: inline-block;
+                padding: 0.5rem 1rem;
+                background: #28a745;
+                color: white;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                margin-top: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🌿 Cannabis Delivery Platform</h1>
+            <p>South Africa's premier cannabis delivery service with real-time tracking, compliance controls, and age verification.</p>
+
+            <div class="apps">
+                <div class="app-card">
+                    <h3>🛒 Customer App</h3>
+                    <p>Browse products, place orders, and track deliveries in real-time.</p>
+                    <span class="status">Coming Soon</span>
+                </div>
+                <div class="app-card">
+                    <h3>🏪 Vendor Dashboard</h3>
+                    <p>Manage inventory, process orders, and oversee operations.</p>
+                    <span class="status">Coming Soon</span>
+                </div>
+                <div class="app-card">
+                    <h3>🚚 Driver App</h3>
+                    <p>Navigate deliveries and provide real-time location updates.</p>
+                    <span class="status">Coming Soon</span>
+                </div>
+                <div class="app-card">
+                    <h3>⚙️ Admin Panel</h3>
+                    <p>System oversight, compliance monitoring, and analytics.</p>
+                    <span class="status">Coming Soon</span>
+                </div>
+            </div>
+
+            <p style="margin-top: 3rem; font-size: 1rem; opacity: 0.8;">
+                Powered by Azure • Built for South Africa 🇿🇦
+            </p>
+        </div>
+    </body>
+    </html>
+  `);
+});
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+// Initialize Azure Storage on startup
+async function initializeStorage() {
+    try {
+        if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
+            await storageService_1.default.initializeContainer();
+            console.log('✅ Azure Storage initialized successfully');
+        }
+        else {
+            console.warn('⚠️ AZURE_STORAGE_CONNECTION_STRING not configured - image uploads disabled');
+        }
+    }
+    catch (error) {
+        console.error('❌ Failed to initialize Azure Storage:', error);
+    }
+}
+// Initialize storage and start routes
+initializeStorage();
 // Auth routes
 app.use('/auth', auth_1.default);
-// Product routes
-app.use('/products', products_1.default);
+// Product routes with multer middleware for file uploads
+app.use('/products', upload.single('image'), products_1.default);
 // Order routes
 app.use('/orders', orders_1.default);
 // Payment routes
 app.use('/payments', payments_1.default);
+// Error handler for multer file upload errors
+app.use((err, req, res, next) => {
+    if (err instanceof multer_1.default.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+        }
+        else if (err.code === 'LIMIT_FILE_COUNT') {
+            return res.status(400).json({ error: 'Too many files' });
+        }
+    }
+    else if (err && err.message && err.message.includes('Invalid file type')) {
+        return res.status(400).json({ error: err.message });
+    }
+    next(err);
+});
 // Socket.io for real-time tracking
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
