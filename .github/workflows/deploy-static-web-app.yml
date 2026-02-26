@@ -42,8 +42,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
           app_location: 'apps/customer-app'
-          app_artifact_location: 'build'
-          skip_app_build: true
+          output_location: 'build'
 
       - name: Deployment complete
         run: |
