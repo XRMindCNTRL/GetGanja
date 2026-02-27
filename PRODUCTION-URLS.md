@@ -3,7 +3,7 @@
 ## 🌐 Live Application URLs
 
 ### Frontend Applications
-- **Customer App**: https://orange-mud-083f9ac0f.4.azurestaticapps.net
+- **Customer App**: https://delightful-pond-0bd190410.2.azurestaticapps.net
   - Browse products, place orders, user registration/login
 
 - **Vendor Dashboard**: https://gentle-grass-00bb9010f.1.azurestaticapps.net
