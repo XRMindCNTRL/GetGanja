@@ -1,3 +1,4 @@
 {
-    "azureAutomation.directory.basePath": "c:\\Users\\pc"
+    "azureAutomation.directory.basePath": "c:\\Users\\pc",
+    "github-enterprise.uri": "https://ai4mindcntrl.ghe.com/"
 }
