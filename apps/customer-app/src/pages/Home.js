@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   return (
@@ -7,8 +8,8 @@ const Home = () => {
         <h1>Welcome to Cannabis Delivery Platform</h1>
         <p>Your trusted online cannabis delivery service</p>
         <div className="hero-buttons">
-          <button className="btn-primary">Browse Products</button>
-          <button className="btn-secondary">Sign Up</button>
+          <Link to="/products" className="btn-primary">Browse Products</Link>
+          <Link to="/register" className="btn-secondary">Sign Up</Link>
         </div>
       </div>
 
@@ -37,7 +38,7 @@ const Home = () => {
       <div className="cta-section">
         <h2>Ready to Get Started?</h2>
         <p>Join thousands of satisfied customers</p>
-        <button className="btn-primary">Shop Now</button>
+        <Link to="/products" className="btn-primary">Shop Now</Link>
       </div>
     </div>
   );
