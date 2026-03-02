@@ -191,3 +191,20 @@ REACT_APP_FIREBASE_CONFIG=...
 - Linting: ESLint via npm run lint
 - Type safety: strict tsconfig.json enforces TS checks
 - Code formatting: Prettier on save (recommended in VS Code)
+
+## CI/CD & GitHub Actions
+- Workflows are in `.github/workflows/`
+- Static Web Apps auto-deploy on push to `main` via Azure Static Web Apps workflows
+- Backend deploys via `deploy-backend.yml` to Azure App Service
+- Infrastructure deploys via `deploy-infrastructure.yml` using Bicep templates in `infra/`
+- Do not bypass CI checks; always ensure builds pass before merging
+- Secrets are stored in GitHub Secrets and referenced in workflow YAML files
+
+## Repository Structure Notes
+- `.github/copilot-instructions.md` — Copilot coding agent instructions (this file)
+- `.github/instructions/` — Topic-specific instruction files (e.g., Codacy integration)
+- `.github/workflows/` — GitHub Actions CI/CD pipelines
+- `apps/` — Frontend React/Vite apps (monorepo workspaces)
+- `backend/` — Express/TypeScript API server
+- `infra/` — Azure Bicep infrastructure-as-code templates
+- `scripts/` — Deployment and utility scripts
