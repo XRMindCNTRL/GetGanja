@@ -1,7 +1,28 @@
 {
   "name": "cannabis-delivery-platform",
   "version": "1.0.0",
+  "description": "Full-stack cannabis delivery marketplace for South Africa — React front-end apps, Express/TypeScript backend, Prisma ORM, and Azure infrastructure.",
   "private": true,
+  "homepage": "https://github.com/XRMindCNTRL/GetGanja#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XRMindCNTRL/GetGanja.git"
+  },
+  "bugs": {
+    "url": "https://github.com/XRMindCNTRL/GetGanja/issues"
+  },
+  "keywords": [
+    "cannabis",
+    "delivery",
+    "south-africa",
+    "react",
+    "express",
+    "azure",
+    "prisma",
+    "typescript"
+  ],
+  "author": "XRMindCNTRL",
+  "license": "MIT",
   "workspaces": [
     "apps/*"
   ],
