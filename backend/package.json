@@ -1,8 +1,17 @@
 {
   "name": "cannabis-delivery-backend",
   "version": "1.0.0",
-  "description": "Backend API for Cannabis Delivery Platform",
+  "description": "Express/TypeScript REST API and Socket.IO backend for the GetGanja cannabis delivery platform.",
   "main": "dist/server.js",
+  "homepage": "https://github.com/XRMindCNTRL/GetGanja#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XRMindCNTRL/GetGanja.git",
+    "directory": "backend"
+  },
+  "bugs": {
+    "url": "https://github.com/XRMindCNTRL/GetGanja/issues"
+  },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
@@ -61,6 +70,6 @@
     "azure",
     "south-africa"
   ],
-  "author": "Cannabis Delivery Platform",
+  "author": "XRMindCNTRL",
   "license": "MIT"
 }
